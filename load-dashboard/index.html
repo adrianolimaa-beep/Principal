@@ -1,0 +1,792 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Controle de Carga | Jogos</title>
+    <link rel="stylesheet" href="./styles.css?v=20260730-game-split-render-fix-v4">
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Filtros">
+        <div class="brand-block">
+          <p class="eyebrow">Fortaleza EC</p>
+          <h1>Controle de Carga</h1>
+        </div>
+
+        <label class="field">
+          <span>Atleta</span>
+          <select id="athleteSelect"></select>
+        </label>
+
+        <label class="toggle">
+          <input id="activeOnlyToggle" type="checkbox">
+          <span>Somente atletas ativos</span>
+        </label>
+
+        <label class="field">
+          <span>Metrica</span>
+          <select id="metricSelect"></select>
+        </label>
+
+        <div class="field">
+          <span>Modo de analise</span>
+          <div class="segmented two" id="loadModeControl" role="group" aria-label="Modo de analise">
+            <button type="button" data-mode="volume" class="active">Volume</button>
+            <button type="button" data-mode="density">Densidade</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span>Janela media movel</span>
+          <div class="segmented" id="windowControl" role="group" aria-label="Janela media movel">
+            <button type="button" data-window="3">3</button>
+            <button type="button" data-window="5" class="active">5</button>
+            <button type="button" data-window="10">10</button>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>Minimo de minutos</span>
+          <input id="minutesInput" type="number" min="0" max="130" step="1" value="85">
+        </label>
+
+        <label class="toggle">
+          <input id="completeToggle" type="checkbox" checked>
+          <span>Somente jogos com 1tempo + 2tempo</span>
+        </label>
+
+        <div class="meta-box">
+          <span>Regras velocidade</span>
+          <strong>Alta int. = VB5 + VB6 + VB7</strong>
+          <strong>Sprint = VB6 + VB7</strong>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div class="athlete-title-row">
+            <div id="athleteAvatar" class="athlete-avatar" aria-hidden="true">
+              <span id="athleteAvatarFallback">--</span>
+              <img id="athletePhoto" alt="">
+            </div>
+            <div>
+              <p id="contextLabel" class="eyebrow">Analise longitudinal</p>
+              <h2 id="athleteTitle">Atleta</h2>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <button id="reportButton" type="button" title="Gerar relatorio individual do indice de exigencia">Relatorio</button>
+            <button id="refreshButton" type="button" title="Recarregar a versao mais recente dos dados">Atualizar dados</button>
+            <button id="downloadButton" type="button" title="Baixar dados filtrados">CSV</button>
+          </div>
+        </header>
+
+        <section id="reportBuilder" class="report-builder" hidden>
+          <div class="report-builder-card">
+            <div class="panel-head compact">
+              <div>
+                <h3>Relatorio personalizado</h3>
+                <span>Selecione as abas e defina o quadrante de cada pagina.</span>
+              </div>
+              <button id="reportCloseButton" type="button" class="report-close-button" aria-label="Fechar gerador de relatorio">Fechar</button>
+            </div>
+            <div class="report-builder-grid">
+              <label class="field report-title-field">
+                <span>Titulo do relatorio</span>
+                <input id="reportTitleInput" type="text" value="Relatorio personalizado - Controle de Carga">
+              </label>
+              <div class="report-builder-help">
+                <strong>Identidade visual</strong>
+                <p>O relatorio abre em uma nova janela com paleta do Fortaleza EC e layout pronto para impressao.</p>
+              </div>
+            </div>
+            <div id="reportOptions" class="report-options"></div>
+            <div class="report-actions">
+              <button id="reportGenerateButton" type="button">Gerar relatorio</button>
+            </div>
+          </div>
+        </section>
+
+        <nav class="view-tabs" aria-label="Abas de analise">
+          <button type="button" class="active" data-view="longitudinal">Longitudinal</button>
+          <button type="button" data-view="gameSplit">Jogo por tempo</button>
+          <button type="button" data-view="clusters">Grupos fisicos</button>
+          <button type="button" data-view="ranking">Ranking percentil</button>
+          <button type="button" data-view="correlation">Correlacao</button>
+          <button type="button" data-view="demand">Indice de exigencia</button>
+          <button type="button" data-view="external">Atleta externo</button>
+          <button type="button" data-view="availability">Disponibilidade</button>
+          <button type="button" data-view="alerts">Alertas</button>
+          <button type="button" data-view="written">Material escrito</button>
+        </nav>
+
+        <section id="longitudinalView" class="view-panel active">
+          <section class="kpi-grid" aria-label="Indicadores">
+            <article class="kpi">
+              <span>Jogos filtrados</span>
+              <strong id="gamesKpi">0</strong>
+            </article>
+            <article class="kpi">
+              <span>Media atleta</span>
+              <strong id="athleteAvgKpi">0</strong>
+            </article>
+            <article class="kpi">
+              <span>Ref. posicao</span>
+              <strong id="positionAvgKpi">0</strong>
+            </article>
+            <article class="kpi">
+              <span>Diferenca</span>
+              <strong id="diffKpi">0</strong>
+            </article>
+          </section>
+
+          <section class="panel compare-panel">
+            <div class="panel-head compact">
+              <div>
+                <h3>Comparar atletas</h3>
+                <p>Selecione atletas adicionais para visualizar a mesma metrica no grafico longitudinal.</p>
+              </div>
+              <button id="clearCompareButton" type="button">Limpar</button>
+            </div>
+            <label class="compare-select-label">
+              <span>Atletas comparados</span>
+              <select id="compareAthletesSelect" multiple size="5"></select>
+            </label>
+            <div id="compareChips" class="compare-chips"></div>
+          </section>
+
+          <section class="chart-panel">
+            <div class="panel-head">
+              <div>
+                <h3 id="chartTitle">Evolucao</h3>
+                <p id="chartSubtitle">Linha azul: partida. Linha vermelha: media movel. Linha tracejada: referencia da posicao.</p>
+              </div>
+              <div class="legend" aria-label="Legenda">
+                <span><i class="dot raw"></i>Jogo</span>
+                <span><i class="dot rolling"></i>Media movel</span>
+                <span><i class="dash"></i>Posicao</span>
+                <span><i class="dot compare"></i>Comparados</span>
+              </div>
+            </div>
+            <div id="chart" class="chart" role="img" aria-label="Grafico longitudinal"></div>
+          </section>
+
+          <section class="chart-panel">
+            <div class="panel-head">
+              <div>
+                <h3 id="loadResultTitle">Resultante volume x densidade</h3>
+                <p id="loadResultSubtitle">Ultimos 10 jogos com percentuais de volume, densidade e resultante da carga para a variavel selecionada.</p>
+              </div>
+              <div class="legend" aria-label="Legenda resultante">
+                <span><i class="dot result-volume"></i>Volume %</span>
+                <span><i class="dot result-density"></i>Densidade %</span>
+                <span><i class="dot result-total"></i>Resultante %</span>
+              </div>
+            </div>
+            <div id="loadResultChart" class="chart" role="img" aria-label="Grafico de resultante de volume e densidade"></div>
+          </section>
+
+          <section class="lower-grid">
+            <section class="panel">
+              <div class="panel-head compact">
+                <h3>Referencia por posicao</h3>
+                <span id="referenceNote"></span>
+              </div>
+              <div id="positionBars" class="bars"></div>
+            </section>
+
+            <section class="panel radar-panel">
+              <div class="panel-head compact">
+                <h3>Radar atleta x posicao</h3>
+                <span id="radarNote"></span>
+              </div>
+              <div id="radarChart" class="radar-chart" role="img" aria-label="Radar comparativo"></div>
+              <div class="legend radar-legend" aria-label="Legenda radar">
+                <span><i class="swatch athlete"></i>Atleta</span>
+                <span><i class="swatch position"></i>Posicao</span>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head compact">
+                <h3>Partidas</h3>
+                <span id="tableCount"></span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Min</th>
+                      <th id="metricHeader">Valor</th>
+                      <th>Media movel</th>
+                      <th>Ref. posicao</th>
+                    </tr>
+                  </thead>
+                  <tbody id="eventsTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+        </section>
+
+        <section id="gameSplitView" class="view-panel">
+          <section class="cluster-toolbar panel">
+            <div>
+              <h3>Resumo por jogo e tempos</h3>
+              <p id="gameSplitNote">Tabela do jogo completo, 1tempo e 2tempo com valor absoluto e comparacao contra a media do atleta no filtro atual.</p>
+            </div>
+            <div class="cluster-controls">
+              <label>
+                <span>Jogo</span>
+                <select id="gameSplitDateSelect"></select>
+              </label>
+            </div>
+          </section>
+
+          <section class="availability-grid">
+            <article class="kpi"><span>Jogos elegiveis</span><strong id="gameSplitGamesKpi">0</strong></article>
+            <article class="kpi"><span>Data selecionada</span><strong id="gameSplitDateKpi">--</strong></article>
+            <article class="kpi"><span>Minutos do jogo</span><strong id="gameSplitMinutesKpi">0</strong></article>
+            <article class="kpi"><span>Pico V. max</span><strong id="gameSplitPeakVmaxKpi">0</strong></article>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head compact">
+              <h3>Tabela comparativa por tempo</h3>
+              <span id="gameSplitTableCount">0 linhas</span>
+            </div>
+            <div class="table-wrap game-split-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tarefa</th>
+                    <th>Min</th>
+                    <th>Dist. total</th>
+                    <th>% media</th>
+                    <th>Alta int.</th>
+                    <th>% media</th>
+                    <th>Aceleracoes</th>
+                    <th>% media</th>
+                    <th>Desaceleracoes</th>
+                    <th>% media</th>
+                    <th>&gt;25 km/h</th>
+                    <th>% media</th>
+                    <th>% V.max</th>
+                    <th>% media</th>
+                  </tr>
+                </thead>
+                <tbody id="gameSplitTable"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head compact">
+              <h3>Leitura do recorte</h3>
+              <span id="gameSplitSummaryNote"></span>
+            </div>
+            <div id="gameSplitSummary" class="game-split-summary"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head compact">
+              <h3>Todos os jogadores na data</h3>
+              <span id="gameSplitPlayersCount">0 atletas</span>
+            </div>
+            <div class="table-wrap game-split-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Atleta</th>
+                    <th>Posicao</th>
+                    <th>Recorte</th>
+                    <th>Min</th>
+                    <th>Dist. total</th>
+                    <th>% media</th>
+                    <th>Max</th>
+                    <th>Alta int.</th>
+                    <th>% media</th>
+                    <th>Max</th>
+                    <th>Aceleracoes</th>
+                    <th>% media</th>
+                    <th>Max</th>
+                    <th>Desaceleracoes</th>
+                    <th>% media</th>
+                    <th>Max</th>
+                    <th>&gt;25 km/h</th>
+                    <th>% media</th>
+                    <th>Max</th>
+                    <th>% V.max</th>
+                    <th>% media</th>
+                    <th>Max</th>
+                  </tr>
+                </thead>
+                <tbody id="gameSplitPlayersTable"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section id="clustersView" class="view-panel">
+          <section class="cluster-toolbar panel">
+            <div>
+              <h3>Grupos fisicos por k-means</h3>
+              <p id="clusterModeNote">O agrupamento usa medias por atleta nas metricas do radar, incluindo alta intensidade, padronizadas por z-score.</p>
+            </div>
+            <div class="cluster-controls">
+              <label>
+                <span>Clusters</span>
+                <select id="clusterCountSelect">
+                  <option value="2">2</option>
+                  <option value="3" selected>3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </select>
+              </label>
+              <label>
+                <span>Min. jogos</span>
+                <input id="clusterMinGamesInput" type="number" min="1" max="20" step="1" value="3">
+              </label>
+            </div>
+          </section>
+
+          <section class="cluster-grid">
+            <section class="panel">
+              <div class="panel-head compact">
+                <h3>Mapa dos atletas</h3>
+                <span id="clusterMapNote"></span>
+              </div>
+              <div id="clusterScatter" class="cluster-scatter" role="img" aria-label="Mapa de clusters"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head compact">
+                <h3>Resumo dos grupos</h3>
+                <span id="clusterSummaryNote"></span>
+              </div>
+              <div id="clusterCards" class="cluster-cards"></div>
+            </section>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head compact">
+              <h3>Atletas agrupados</h3>
+              <span id="clusterTableCount"></span>
+            </div>
+            <div class="table-wrap cluster-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Grupo</th>
+                    <th>Atleta</th>
+                    <th>Posicao</th>
+                    <th>Jogos</th>
+                    <th>Total Dist.</th>
+                    <th>Alta int.</th>
+                    <th>FMP High</th>
+                    <th>Sprint</th>
+                    <th>Acoes expl.</th>
+                    <th>RHIE</th>
+                    <th>Run High</th>
+                  </tr>
+                </thead>
+                <tbody id="clusterTable"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+        <section id="rankingView" class="view-panel">
+          <section class="cluster-toolbar panel">
+            <div>
+              <h3>Ranking percentil Fortaleza EC</h3>
+              <p>Percentil calculado a partir das medias por atleta, com escolha entre referencia da equipe ou da posicao.</p>
+            </div>
+            <div class="cluster-controls">
+              <label><span>Referencia</span><select id="rankingScopeSelect"><option value="team" selected>Equipe</option><option value="position">Posicao</option></select></label>
+              <label><span>Posicao</span><select id="rankingPositionSelect"></select></label>
+              <label><span>Ordenar por</span><select id="rankingSortSelect"></select></label>
+              <label><span>Min. jogos</span><input id="rankingMinGamesInput" type="number" min="1" max="20" step="1" value="3"></label>
+              <label><span>Mostrar</span><select id="rankingLimitSelect"><option value="10" selected>Top 10</option><option value="20">Top 20</option><option value="all">Todos</option></select></label>
+              <div class="ranking-metric-picker">
+                <span>Variaveis</span>
+                <button id="rankingMetricToggle" type="button" class="metric-picker-button" aria-expanded="false" aria-controls="rankingMetricMenu">Selecionar variaveis</button>
+                <div id="rankingMetricMenu" class="metric-picker-menu" hidden></div>
+              </div>
+            </div>
+          </section>
+          <section class="ranking-grid">
+            <article class="kpi"><span>Atletas ranqueados</span><strong id="rankingAthletesKpi">0</strong></article>
+            <article class="kpi"><span>Referencia</span><strong id="rankingScopeKpi">Equipe</strong></article>
+            <article class="kpi"><span>Ordenacao</span><strong id="rankingMetricKpi">Media</strong></article>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head compact"><h3>Heatmap de percentis</h3><span id="rankingHeatmapNote"></span></div>
+            <div id="rankingHeatmap" class="ranking-heatmap" role="img" aria-label="Heatmap de percentis por atleta e metrica"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head compact"><h3>Tabela de percentis</h3><span id="rankingTableCount"></span></div>
+            <div class="table-wrap ranking-table-wrap">
+              <table>
+                <thead id="rankingTableHead"></thead>
+                <tbody id="rankingTable"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+        <section id="correlationView" class="view-panel">
+          <section class="cluster-toolbar panel">
+            <div>
+              <h3>Matriz de correlacao - Jogos CTR</h3>
+              <p>Correlacao de Pearson entre as variaveis numericas consolidadas por jogo, respeitando os filtros globais ativos do dashboard.</p>
+            </div>
+            <div class="alert-summary" id="correlationNote">Sem dados</div>
+          </section>
+
+          <section class="availability-grid">
+            <article class="kpi"><span>Jogos na analise</span><strong id="correlationGamesKpi">0</strong></article>
+            <article class="kpi"><span>Variaveis</span><strong id="correlationVariablesKpi">0</strong></article>
+            <article class="kpi"><span>Maior correlacao +</span><strong id="correlationPositiveKpi">--</strong></article>
+            <article class="kpi"><span>Maior correlacao -</span><strong id="correlationNegativeKpi">--</strong></article>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head compact">
+              <h3>Heatmap de correlacao</h3>
+              <span>Diagonal = 1,00</span>
+            </div>
+            <div id="correlationMatrix" class="correlation-matrix" role="img" aria-label="Matriz de correlacao entre variaveis do Jogos CTR"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head compact">
+              <h3>Pares mais fortes</h3>
+              <span id="correlationPairsCount">0 pares</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>#</th><th>Variavel A</th><th>Variavel B</th><th>r</th><th>Leitura</th></tr></thead>
+                <tbody id="correlationPairsTable"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+        <section id="demandView" class="view-panel">
+          <section class="cluster-toolbar panel">
+            <div>
+              <h3>Indice de exigencia da demanda fisica</h3>
+              <p id="demandFormulaNote">Indice composto por desvios padrao ponderados do jogo e ajuste pela carga recente.</p>
+            </div>
+            <div class="cluster-controls">
+              <label>
+                <span>Data do jogo</span>
+                <input id="demandDateInput" type="date">
+              </label>
+            </div>
+            <div class="alert-summary" id="demandNote">Sem dados</div>
+          </section>
+
+          <section class="availability-grid">
+            <article class="kpi"><span>Ultimo indice</span><strong id="demandScoreKpi">0</strong></article>
+            <article class="kpi"><span>Faixa</span><strong id="demandBandKpi">--</strong></article>
+            <article class="kpi"><span>Demanda do jogo</span><strong id="demandGameLoadKpi">0</strong></article>
+            <article class="kpi"><span>Carga recente</span><strong id="demandRecentLoadKpi">0</strong></article>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head compact">
+              <h3>Metodo do indice</h3>
+              <span>Resumo tecnico</span>
+            </div>
+            <div class="demand-method">
+              <article>
+                <strong>1. Demanda do jogo</strong>
+                <p>Z-score individual do atleta em cada metrica, com limite de -3 a +3 DP.</p>
+              </article>
+              <article>
+                <strong>2. Pesos</strong>
+                <p>Alta intensidade 28%, Acoes explosivas 25%, Sprint 20%, RHIE 18%, Distancia total 3%, FMP High 3%, Run High 3%.</p>
+              </article>
+              <article>
+                <strong>3. Cargas complementares</strong>
+                <p>Carga recente = EWMA dos ultimos 4 dias. Carga aguda/cronica = relacao entre a EWMA de 7 dias e a EWMA de 28 dias, com carga zero nos dias sem sessao.</p>
+              </article>
+              <article>
+                <strong>4. Formula final</strong>
+                <p>Indice final = 60% jogo + 20% carga aguda/cronica + 20% carga recente, convertido para escala 0-100.</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="demand-grid">
+            <section class="panel">
+              <div class="panel-head compact">
+                <h3>Escala de exigencia</h3>
+                <span id="demandGaugeNote"></span>
+              </div>
+              <div id="demandGauge" class="demand-gauge" role="img" aria-label="Escala de exigencia de baixa a alta"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head compact">
+                <h3>Contribuicoes do ultimo jogo</h3>
+                <span id="demandBreakdownNote"></span>
+              </div>
+              <div id="demandBreakdown" class="bars"></div>
+            </section>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head compact">
+              <h3>Historico do atleta</h3>
+              <span id="demandTimelineNote"></span>
+            </div>
+            <div id="demandTimeline" class="group-metric-bars" role="img" aria-label="Historico do indice de exigencia por jogo"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head compact">
+              <h3>Atletas na data</h3>
+              <span id="demandTableCount"></span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>#</th><th>Atleta</th><th>Posicao</th><th>Data</th><th>Indice</th><th>Faixa</th><th>Jogo</th><th>Recente</th></tr></thead>
+                <tbody id="demandTable"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+        <section id="externalView" class="view-panel">
+          <section class="cluster-toolbar panel">
+            <div>
+              <h3>Comparacao de atleta externo</h3>
+              <p id="externalMethodNote">Upload de 1 linha por jogo para calcular percentis do atleta externo contra a equipe e contra atletas da mesma posicao.</p>
+            </div>
+            <div class="cluster-controls">
+              <label>
+                <span>Arquivo CSV</span>
+                <input id="externalFileInput" type="file" accept=".csv,text/csv">
+              </label>
+              <a id="externalTemplateLink" class="template-link" href="./comparacao-atleta-externo-template.csv" download>Baixar template</a>
+            </div>
+            <div class="alert-summary" id="externalNote">Nenhum arquivo carregado</div>
+          </section>
+
+          <section class="availability-grid">
+            <article class="kpi"><span>Jogos do candidato</span><strong id="externalGamesKpi">0</strong></article>
+            <article class="kpi"><span>Posicao</span><strong id="externalPositionKpi">--</strong></article>
+            <article class="kpi"><span>Percentil equipe</span><strong id="externalTeamPctKpi">--</strong></article>
+            <article class="kpi"><span>Percentil posicao</span><strong id="externalPositionPctKpi">--</strong></article>
+          </section>
+
+          <section class="demand-grid">
+            <section class="panel">
+              <div class="panel-head compact">
+                <h3>Perfil do candidato</h3>
+                <span id="externalProfileNote"></span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Metrica</th><th>Media candidato</th><th>Percentil equipe</th><th>Percentil posicao</th></tr></thead>
+                  <tbody id="externalProfileTable"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head compact">
+                <h3>Leitura rapida</h3>
+                <span id="externalSummaryNote"></span>
+              </div>
+              <div id="externalSummaryBars" class="bars"></div>
+            </section>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head compact">
+              <h3>Referencia interna por atleta</h3>
+              <span id="externalReferenceCount"></span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Atleta</th><th>Posicao</th><th>Jogos</th><th>Dist. total</th><th>Alta int.</th><th>Aceleracoes</th><th>Desaceleracoes</th></tr></thead>
+                <tbody id="externalReferenceTable"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+        <section id="availabilityView" class="view-panel">
+          <section class="cluster-toolbar panel">
+            <div>
+              <h3>Disponibilidade do elenco</h3>
+              <p>Atleta em DM e considerado indisponivel; G1, G2, G3 e demais grupos contam como disponiveis.</p>
+            </div>
+            <div class="cluster-controls">
+              <label><span>Data inicial</span><input id="availabilityStartInput" type="date"></label>
+              <label><span>Data final</span><input id="availabilityEndInput" type="date"></label>
+              <label><span>Metrica</span><select id="availabilityMetricSelect"></select></label>
+            </div>
+          </section>
+
+          <section class="availability-grid">
+            <article class="kpi"><span>Dias no periodo</span><strong id="availabilityDaysKpi">0</strong></article>
+            <article class="kpi"><span>Disponibilidade media</span><strong id="availabilityRateKpi">0%</strong></article>
+            <article class="kpi"><span>Registros DM</span><strong id="availabilityDmKpi">0</strong></article>
+            <article class="kpi"><span>Atletas avaliados</span><strong id="availabilityAthletesKpi">0</strong></article>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head compact">
+              <h3>Evolucao diaria</h3>
+              <span id="availabilityChartNote"></span>
+            </div>
+            <div id="availabilityChart" class="availability-chart" role="img" aria-label="Grafico de disponibilidade diaria"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head compact">
+              <h3>G1 x G2: somatorio das medias diarias</h3>
+              <span id="availabilityMetricNote"></span>
+            </div>
+            <div id="availabilityMetricBars" class="group-metric-bars" role="img" aria-label="Comparacao de metricas entre grupos"></div>
+            <div class="table-wrap daily-group-table-wrap">
+              <table>
+                <thead><tr><th>Data</th><th>G1 media</th><th>G1 atletas</th><th>G2 media</th><th>G2 atletas</th><th>Dif. G1-G2</th></tr></thead>
+                <tbody id="availabilityDailyGroupTable"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="availability-lower">
+            <section class="panel">
+              <div class="panel-head compact">
+                <h3>Distribuicao por grupo</h3>
+                <span id="availabilityGroupNote"></span>
+              </div>
+              <div id="availabilityGroupBars" class="bars"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head compact">
+                <h3>Atletas com mais dias em DM</h3>
+                <span id="availabilityTableCount"></span>
+              </div>
+              <div class="table-wrap availability-table-wrap">
+                <table>
+                  <thead><tr><th>Atleta</th><th>Posicao</th><th>Dias</th><th>DM</th><th>Disp.</th><th>Grupo mais freq.</th></tr></thead>
+                  <tbody id="availabilityTable"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+          <section class="panel">
+            <div class="panel-head compact">
+              <h3>Medias fisicas por grupo</h3>
+              <span id="availabilityMetricTableCount"></span>
+            </div>
+            <div class="table-wrap group-metric-table-wrap">
+              <table>
+                <thead><tr><th>Grupo</th><th>Registros</th><th>Atletas</th><th>Total Dist.</th><th>Alta int.</th><th>FMP High</th><th>Sprint</th><th>Acoes expl.</th><th>RHIE</th><th>Run High</th></tr></thead>
+                <tbody id="availabilityMetricTable"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+        <section id="alertsView" class="view-panel">
+          <section class="cluster-toolbar panel">
+            <div>
+              <h3>Alertas por desvio padrao</h3>
+              <p>Ultimo jogo valido ate a data escolhida, comparado com o proprio historico anterior do atleta.</p>
+            </div>
+            <div class="cluster-controls">
+              <label>
+                <span>Limite</span>
+                <select id="alertThresholdSelect">
+                  <option value="2">2 DP</option>
+                  <option value="1">1 DP</option>
+                </select>
+              </label>
+              <label>
+                <span>Data ref.</span>
+                <input id="alertDateInput" type="date">
+              </label>
+            </div>
+            <div class="alert-summary" id="alertNote">0 alertas</div>
+          </section>
+          <section id="alertBoard" class="alert-board"></section>
+        </section>
+
+        <section id="writtenView" class="view-panel">
+          <section class="written-hero panel">
+            <div>
+              <p class="eyebrow">Fortaleza EC</p>
+              <h3>Material escrito - App Controle de Carga</h3>
+              <p>Resumo metodologico das analises construidas para acompanhamento de carga competitiva, disponibilidade, rankings e comparacoes do elenco.</p>
+            </div>
+          </section>
+
+          <section class="written-grid">
+            <article class="written-card">
+              <span>01</span>
+              <h4>Regra do jogo</h4>
+              <p>Na planilha Jogos CTR, os periodos <strong>1tempo</strong> e <strong>2tempo</strong> representam primeiro e segundo tempo. O jogo completo e a soma dos dois periodos. Recortes minuto a minuto nao entram como jogo completo.</p>
+            </article>
+            <article class="written-card">
+              <span>02</span>
+              <h4>Vinculo dos atletas</h4>
+              <p>O ID do atleta na base de jogos e cruzado com o cadastro para trazer nome oficial, posicao, status e foto. Isso padroniza os filtros, rankings, grupos e tabelas.</p>
+            </article>
+            <article class="written-card">
+              <span>03</span>
+              <h4>Metricas principais</h4>
+              <p>As metricas acompanhadas sao Total Distance, Alta intensidade, FMP High Dynamic, Sprint, Acoes explosivas, RHIE Total Bouts e FMP Running High Duration. Alta intensidade e VB5 + VB6 + VB7. Sprint e VB6 + VB7. Acoes explosivas somam Acceleration B2-3, Deceleration B2-3, IMA CoD Left High e IMA CoD Right High.</p>
+            </article>
+            <article class="written-card">
+              <span>04</span>
+              <h4>Volume e densidade</h4>
+              <p>O modo Volume usa os valores totais do jogo. O modo Densidade divide o volume pela duracao do jogo do atleta. Exemplo: 10.000 m em 100 min = 100 m/min.</p>
+            </article>
+            <article class="written-card">
+              <span>05</span>
+              <h4>Longitudinal</h4>
+              <p>A aba longitudinal acompanha a evolucao do atleta jogo a jogo, media movel, referencia da posicao e radar atleta x posicao. O filtro minimo de minutos controla quais jogos entram no calculo.</p>
+            </article>
+            <article class="written-card">
+              <span>06</span>
+              <h4>Ranking percentil</h4>
+              <p>O ranking usa medias por atleta e transforma cada metrica em percentil. A referencia pode ser equipe inteira ou a propria posicao. O filtro de posicao controla quem aparece na tela.</p>
+            </article>
+            <article class="written-card">
+              <span>07</span>
+              <h4>Grupos fisicos</h4>
+              <p>O k-means agrupa atletas com perfis fisicos proximos a partir das metricas do radar, padronizadas por z-score. Os nomes dos grupos descrevem caracteristicas como resistencia alta, sprint baixo ou alta intensidade elevada.</p>
+            </article>
+            <article class="written-card">
+              <span>08</span>
+              <h4>Disponibilidade</h4>
+              <p>A planilha GRUPOS TAG define o grupo diario do atleta. DM significa indisponivel. G1, G2, G3 e demais marcacoes contam como disponiveis para o calculo de disponibilidade do elenco.</p>
+            </article>
+            <article class="written-card">
+              <span>09</span>
+              <h4>Comparacao G1 x G2</h4>
+              <p>Para comparar G1 e G2, em cada dia o app calcula a media da carga dos atletas do grupo. Depois soma essas medias diarias no periodo selecionado.</p>
+            </article>
+            <article class="written-card">
+              <span>10</span>
+              <h4>Atualizacao diaria</h4>
+              <p>A automacao diaria atualiza Jogos CTR, cadastro e GRUPOS TAG, reconstruindo a base do dashboard e validando as abas principais. A leitura depende do arquivo local do OneDrive estar sincronizado no computador.</p>
+            </article>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script src="./data.js?v=20260817-data-refresh"></script>
+    <script src="./app.js?v=20260817-athlete-demand-report"></script>
+  </body>
+</html>
+
+
+
