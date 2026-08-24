@@ -1,0 +1,4 @@
+candidateId;athleteName;position;club;season;competition;matchDate;minutes;totalDistanceMeters;highIntensityMeters;accelerationsB23;decelerationsB23;source;notes
+EXT001;NERIS;ZAGUEIRO;VITORIA EC;2026;Brasileirao;01/02/2026;87;8726;394;12;14;Wyscout;
+EXT001;NERIS;ZAGUEIRO;VITORIA EC;2026;Brasileirao;04/02/2026;;8669;470;17;22;;
+EXT001;NERIS;ZAGUEIRO;VITORIA EC;2026;Brasileirao;25/03/2026;;9846;357;21;28;;
