@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Controle de carga</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar" aria-label="Cabeçalho do controle de carga">
+        <div><p class="eyebrow">Fisiologia</p><h1>Controle de carga</h1></div>
+        <div class="header-actions">
+          <a class="app-switcher" href="../">Todos os apps</a>
+          <div class="official-badge"><span class="badge-dot"></span>Dados do elenco</div>
+        </div>
+      </section>
+
+      <nav class="app-tabs" aria-label="Áreas do aplicativo">
+        <button class="app-tab is-active" type="button" data-tab="ranking-view" aria-selected="true">Ranking percentil</button>
+        <button class="app-tab" type="button" data-tab="training-view" aria-selected="false">Avaliação do treino</button>
+        <button class="app-tab" type="button" data-tab="longitudinal-view" aria-selected="false">Densidade longitudinal em treinos</button>
+      </nav>
+
+      <div class="tab-view is-active" id="ranking-view">
+        <section class="workspace">
+          <form class="panel input-panel" id="external-form">
+            <div class="panel-heading"><h2>Entrada manual</h2><span id="reference-count">Referência: carregando</span></div>
+            <div class="identity-grid">
+              <label>Atleta<input id="athlete-name" type="text" value="NERIS" autocomplete="off" /></label>
+              <label>Posição<select id="position"><option value="ZAGUEIRO" selected>Zagueiro</option></select></label>
+            </div>
+            <div class="metric-grid">
+              <label>Distância total média (m)<input id="totalDistanceMeters" type="number" min="0" step="1" value="9080.3" /></label>
+              <label>Alta intensidade média (m)<input id="highIntensityMeters" type="number" min="0" step="1" value="407.0" /></label>
+              <label>Acelerações B2-3 média<input id="accelerationsB23" type="number" min="0" step="0.1" value="16.7" /></label>
+              <label>Desacelerações B2-3 média<input id="decelerationsB23" type="number" min="0" step="0.1" value="21.3" /></label>
+            </div>
+            <div class="actions">
+              <button type="submit" class="primary-action">Atualizar simulação</button>
+              <button type="button" class="ghost-action" id="reset-defaults">Restaurar NERIS</button>
+            </div>
+          </form>
+
+          <section class="panel result-panel" aria-label="Resultado da simulação">
+            <div class="panel-heading"><h2>Encaixe no grupo</h2><span id="official-status">Simulação temporária</span></div>
+            <div class="score-row">
+              <div><span class="score-label">Percentil médio</span><strong id="mean-percentile">--</strong></div>
+              <div><span class="score-label">Leitura</span><strong id="classification">--</strong></div>
+            </div>
+            <div class="radar-layout">
+              <svg id="radar" viewBox="0 0 420 360" role="img" aria-label="Radar do atleta externo versus média da posição"></svg>
+              <div class="legend"><span><i class="legend-external"></i>Atleta externo</span><span><i class="legend-reference"></i>Média zagueiros</span></div>
+            </div>
+          </section>
+        </section>
+        <section class="panel table-panel">
+          <div class="panel-heading"><h2>Percentis por métrica</h2><span>Base oficial preservada</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Métrica</th><th>Atleta</th><th>Média posição</th><th>Índice</th><th>Percentil</th><th>Ranking simulado</th></tr></thead><tbody id="metric-rows"></tbody></table></div>
+        </section>
+      </div>
+
+      <div class="tab-view" id="training-view">
+        <section class="panel training-filter-panel">
+          <div class="panel-heading">
+            <div><p class="section-kicker">Atleta × posição</p><h2>Avaliação do treino</h2></div>
+            <span id="training-updated">Base de treinos</span>
+          </div>
+          <div class="training-filter-grid">
+            <label>Atleta<select id="training-athlete"></select></label>
+            <fieldset class="mode-fieldset">
+              <legend>Visualização</legend>
+              <div class="segmented-control">
+                <label><input type="radio" name="training-mode" value="volume" checked /><span>Volume</span></label>
+                <label><input type="radio" name="training-mode" value="density" /><span>Densidade</span></label>
+              </div>
+            </fieldset>
+            <label>Data inicial<input id="training-start-date" type="date" /></label>
+            <label>Data final<input id="training-end-date" type="date" /></label>
+          </div>
+          <div class="block-filter">
+            <div class="block-filter-heading">
+              <div><span class="field-label">Blocos disponíveis</span><small>Somente blocos com mais de 80 m/min e duração superior a 10 min</small></div>
+              <div class="compact-actions"><button type="button" class="text-action" id="select-all-blocks">Selecionar todos</button><button type="button" class="text-action" id="clear-blocks">Limpar</button></div>
+            </div>
+            <div class="block-options" id="training-blocks" aria-label="Seleção de blocos"></div>
+          </div>
+        </section>
+
+        <section class="training-summary" aria-label="Resumo dos filtros">
+          <article class="summary-card"><span>Posição</span><strong id="training-position">--</strong></article>
+          <article class="summary-card"><span>Blocos do atleta</span><strong id="training-block-count">--</strong></article>
+          <article class="summary-card"><span>Atletas na média</span><strong id="training-sample-count">--</strong></article>
+          <article class="summary-card"><span>Referência</span><strong>100%</strong></article>
+        </section>
+
+        <section class="training-workspace">
+          <section class="panel training-radar-panel">
+            <div class="panel-heading"><h2>Perfil do treino</h2><span id="training-mode-label">Volume acumulado</span></div>
+            <div class="radar-layout training-radar-layout">
+              <svg id="training-radar" viewBox="0 0 520 430" role="img" aria-label="Radar do atleta versus média da posição"></svg>
+              <div class="legend"><span><i class="legend-external"></i><span id="training-athlete-legend">Atleta</span></span><span><i class="legend-reference"></i>Média da posição</span></div>
+            </div>
+            <p class="training-note" id="training-note"></p>
+          </section>
+          <section class="panel training-table-panel">
+            <div class="panel-heading"><h2>Comparação por variável</h2><span>100% = média da posição</span></div>
+            <div class="table-wrap"><table class="training-table"><thead><tr><th>Variável</th><th>Atleta</th><th>Média posição</th><th>Índice</th></tr></thead><tbody id="training-metric-rows"></tbody></table></div>
+          </section>
+        </section>
+      </div>
+
+      <div class="tab-view" id="longitudinal-view">
+        <section class="panel longitudinal-filter-panel">
+          <div class="panel-heading">
+            <div><p class="section-kicker">Evolução por dia de treino</p><h2>Densidade longitudinal em treinos</h2></div>
+            <span>Média móvel do próprio atleta</span>
+          </div>
+          <div class="longitudinal-filter-grid">
+            <label>Atleta<select id="longitudinal-athlete"></select></label>
+            <label>Métrica<select id="longitudinal-metric"></select></label>
+            <label>Janela da média móvel<select id="longitudinal-window"><option value="3">3 dias</option><option value="5" selected>5 dias</option><option value="10">10 dias</option></select></label>
+            <label>Data inicial<input id="longitudinal-start-date" type="date" /></label>
+            <label>Data final<input id="longitudinal-end-date" type="date" /></label>
+          </div>
+          <div class="active-filter-row">
+            <label class="active-only-toggle">
+              <input id="longitudinal-active-only" type="checkbox" />
+              <span>Somente atletas ativos</span>
+            </label>
+            <small>Ative quando quiser restringir o atleta, o grupo e as médias da posição aos nomes marcados como ATIVO no cadastro.</small>
+          </div>
+          <div class="block-filter">
+            <div class="block-filter-heading">
+              <div><span class="field-label">Blocos acompanhados</span><small>Os blocos do mesmo dia são agrupados em uma densidade diária ponderada pela duração.</small></div>
+              <div class="compact-actions"><button type="button" class="text-action" id="longitudinal-select-all">Selecionar todos</button><button type="button" class="text-action" id="longitudinal-clear">Limpar</button></div>
+            </div>
+            <div class="block-options" id="longitudinal-blocks" aria-label="Blocos do acompanhamento longitudinal"></div>
+          </div>
+        </section>
+
+        <section class="training-summary" aria-label="Resumo longitudinal">
+          <article class="summary-card"><span>Média móvel atual</span><strong id="longitudinal-current">--</strong></article>
+          <article class="summary-card self-comparison"><span>Diferença com ele mesmo</span><strong id="longitudinal-self-difference">--</strong></article>
+          <article class="summary-card"><span>Média atual da posição</span><strong id="longitudinal-position-mean">--</strong></article>
+          <article class="summary-card"><span>Dias avaliados</span><strong id="longitudinal-days">--</strong></article>
+        </section>
+
+        <section class="panel longitudinal-chart-panel">
+          <div class="panel-heading"><h2>Evolução do atleta</h2><span id="longitudinal-chart-caption">Densidade diária e média móvel</span></div>
+          <div class="chart-wrap"><svg id="longitudinal-chart" viewBox="0 0 1120 420" role="img" aria-label="Evolução longitudinal da densidade do atleta"></svg></div>
+          <div class="longitudinal-legend"><span><i class="legend-daily"></i>Densidade diária</span><span><i class="legend-moving"></i>Média móvel do atleta</span><span><i class="legend-position-line"></i>Média móvel da posição</span></div>
+        </section>
+
+        <section class="panel longitudinal-group-panel">
+          <div class="panel-heading"><div><p class="section-kicker">Visão do elenco</p><h2>Tabela longitudinal do grupo</h2></div><span>Diferença positiva = verde · negativa = vermelho</span></div>
+          <div class="table-wrap"><table class="group-density-table"><thead><tr><th>Atleta</th><th>Posição</th><th>Densidade atual</th><th>Média móvel</th><th>Com ele mesmo</th><th>Média posição</th><th>Últimos dias</th></tr></thead><tbody id="longitudinal-group-rows"></tbody></table></div>
+        </section>
+      </div>
+      <footer class="app-footer">Adriano Lima - Felipe Lima</footer>
+    </main>
+    <script src="./data/zagueiros_reference.js"></script>
+    <script src="./data/training_data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
