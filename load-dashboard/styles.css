@@ -58,6 +58,14 @@ a {
   border-bottom: 3px solid var(--red);
 }
 
+.app-credit {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--red);
