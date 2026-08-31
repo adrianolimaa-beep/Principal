@@ -62,6 +62,14 @@ h2 {
   font-size: 15px;
 }
 
+.app-credit {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
 .official-badge {
   display: inline-flex;
   align-items: center;
