@@ -823,3 +823,238 @@ if (window.TRAINING_DATA?.records?.length) {
 } else {
   longitudinalEmpty("Atualize a base de treinos para visualizar a evolução.");
 }
+
+const microcycleMetricConfig = [
+  { key: "m", decimals: 0 },
+  { key: "h", decimals: 0 },
+  { key: "s", decimals: 0 },
+  { key: "ac", decimals: 1 },
+  { key: "dc", decimals: 1 },
+];
+
+function normalizeMicrocycleName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleUpperCase("pt-BR")
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function parseCsvRows(text) {
+  const rows = [];
+  let row = [];
+  let value = "";
+  let quoted = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (character === '"') {
+      if (quoted && text[index + 1] === '"') {
+        value += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character === "," && !quoted) {
+      row.push(value);
+      value = "";
+    } else if ((character === "\n" || character === "\r") && !quoted) {
+      if (character === "\r" && text[index + 1] === "\n") index += 1;
+      row.push(value);
+      if (row.some((cell) => cell !== "")) rows.push(row);
+      row = [];
+      value = "";
+    } else {
+      value += character;
+    }
+  }
+  if (value || row.length) {
+    row.push(value);
+    rows.push(row);
+  }
+  return rows;
+}
+
+function groupDateToIso(value) {
+  const parts = String(value || "").trim().split("/").map(Number);
+  if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return "";
+  const [month, day, rawYear] = parts;
+  const year = rawYear < 100 ? 2000 + rawYear : rawYear;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function buildMicrocycleGroupMap(csvText) {
+  const parsed = parseCsvRows(csvText);
+  if (!parsed.length) return new Map();
+  const headers = parsed[0].map((header) => header.trim());
+  const nameIndex = headers.indexOf("Nome Catapult");
+  const dateIndex = headers.indexOf("Data");
+  const groupIndex = headers.indexOf("Grupo");
+  const map = new Map();
+  if ([nameIndex, dateIndex, groupIndex].some((index) => index < 0)) return map;
+  parsed.slice(1).forEach((cells) => {
+    const group = String(cells[groupIndex] || "").trim().toLocaleUpperCase("pt-BR");
+    const date = groupDateToIso(cells[dateIndex]);
+    const name = normalizeMicrocycleName(cells[nameIndex]);
+    if (["G1", "G2", "G3"].includes(group) && date && name) map.set(`${date}|${name}`, group);
+  });
+  return map;
+}
+
+function buildMicrocycleGroupMapFromRecords(records) {
+  const map = new Map();
+  records.forEach(([rawDate, rawName, rawGroup]) => {
+    const group = String(rawGroup || "").trim().toLocaleUpperCase("pt-BR");
+    const date = groupDateToIso(rawDate);
+    const name = normalizeMicrocycleName(rawName);
+    if (["G1", "G2", "G3"].includes(group) && date && name) map.set(`${date}|${name}`, group);
+  });
+  return map;
+}
+
+function mondayUtc(dateValue) {
+  const date = new Date(`${dateValue}T00:00:00Z`);
+  const weekday = date.getUTCDay();
+  const distance = weekday === 0 ? 6 : weekday - 1;
+  date.setUTCDate(date.getUTCDate() - distance);
+  return date;
+}
+
+function dateToIsoUtc(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function microcycleDetails(dateValue, year) {
+  const firstMonday = mondayUtc(`${year}-01-01`);
+  const start = mondayUtc(dateValue);
+  const number = Math.floor((start - firstMonday) / 604800000) + 1;
+  return { number, start: dateToIsoUtc(start) };
+}
+
+function setupMicrocycleEvaluation(payload) {
+  const sessionRows = (payload.records || []).filter((row) => String(row.b).toLocaleUpperCase("pt-BR") === "SESSION");
+  const yearSelect = document.querySelector("#microcycle-year");
+  const groupSelect = document.querySelector("#microcycle-group");
+  const athleteSelect = document.querySelector("#microcycle-athlete");
+  const tableRows = document.querySelector("#microcycle-rows");
+  const status = document.querySelector("#microcycle-status");
+  const athletes = [...new Map(sessionRows.map((row) => [row.i, { id: row.i, name: row.a }])).values()].sort((a, b) =>
+    a.name.localeCompare(b.name, "pt-BR"),
+  );
+  const years = [...new Set(sessionRows.map((row) => Number(row.d.slice(0, 4))))].sort((a, b) => b - a);
+  let groupMap = new Map();
+  let groupDataState = "loading";
+
+  yearSelect.innerHTML = years.map((year) => `<option value="${year}">${year}</option>`).join("");
+  const currentYear = new Date().getFullYear();
+  yearSelect.value = String(years.includes(currentYear) ? currentYear : years[0]);
+  athleteSelect.innerHTML = `<option value="ALL">Todos os atletas</option>${athletes
+    .map((athlete) => `<option value="${athlete.id}">${escapeHtml(athlete.name)}</option>`)
+    .join("")}`;
+
+  function selectedRows() {
+    const year = Number(yearSelect.value);
+    const athleteId = athleteSelect.value;
+    const group = groupSelect.value;
+    return sessionRows.filter((row) => {
+      if (Number(row.d.slice(0, 4)) !== year) return false;
+      if (athleteId !== "ALL" && row.i !== Number(athleteId)) return false;
+      if (group !== "ALL" && groupMap.get(`${row.d}|${normalizeMicrocycleName(row.a)}`) !== group) return false;
+      return true;
+    });
+  }
+
+  function renderMicrocycles() {
+    const year = Number(yearSelect.value);
+    const rows = selectedRows();
+    const sessions = new Map();
+    rows.forEach((row) => {
+      if (!sessions.has(row.d)) sessions.set(row.d, []);
+      sessions.get(row.d).push(row);
+    });
+
+    const microcycles = new Map();
+    sessions.forEach((dateRows, date) => {
+      const details = microcycleDetails(date, year);
+      if (!microcycles.has(details.number)) microcycles.set(details.number, { ...details, sessions: [] });
+      const values = {};
+      microcycleMetricConfig.forEach((metric) => {
+        values[metric.key] = mean(dateRows.map((row) => Number(row[metric.key]) || 0));
+      });
+      microcycles.get(details.number).sessions.push({ date, values });
+    });
+
+    const results = [...microcycles.values()]
+      .sort((a, b) => a.number - b.number)
+      .map((microcycle) => {
+        const values = {};
+        microcycleMetricConfig.forEach((metric) => {
+          values[metric.key] = microcycle.sessions.reduce((total, session) => total + session.values[metric.key], 0);
+        });
+        return { ...microcycle, values };
+      });
+
+    if (!results.length) {
+      const groupUnavailable = groupSelect.value !== "ALL" && groupDataState !== "ready";
+      tableRows.innerHTML = `<tr><td colspan="7" class="empty-table">${
+        groupUnavailable ? "Não foi possível carregar os grupos para este filtro." : "Não há sessões para os filtros selecionados."
+      }</td></tr>`;
+    } else {
+      tableRows.innerHTML = results
+        .map(
+          (microcycle) => `<tr><td><span class="microcycle-code">MC ${microcycle.number}</span><span class="microcycle-session-note">${microcycle.sessions.length} sessão(ões)</span></td>
+            <td>${trainingDateLabel(microcycle.start)}</td>${microcycleMetricConfig
+              .map((metric) => `<td>${trainingNumber(microcycle.values[metric.key], metric.decimals)}</td>`)
+              .join("")}</tr>`,
+        )
+        .join("");
+    }
+
+    const selectedAthlete = athletes.find((athlete) => String(athlete.id) === athleteSelect.value);
+    const scopeParts = [selectedAthlete ? selectedAthlete.name : "Equipe"];
+    if (groupSelect.value !== "ALL") scopeParts.push(groupSelect.value);
+    document.querySelector("#microcycle-count").textContent = String(results.length);
+    document.querySelector("#microcycle-session-count").textContent = String(sessions.size);
+    document.querySelector("#microcycle-scope").textContent = scopeParts.join(" · ");
+    document.querySelector("#microcycle-period").textContent = results.length
+      ? `${trainingDateLabel(results[0].start).slice(0, 5)} a ${trainingDateLabel(results.at(-1).start).slice(0, 5)}`
+      : "--";
+    status.textContent =
+      groupDataState === "ready"
+        ? `${rows.length} registros Session`
+        : groupDataState === "unavailable"
+          ? `${rows.length} registros Session · grupos indisponíveis`
+          : `${rows.length} registros Session · grupos carregando`;
+  }
+
+  [yearSelect, groupSelect, athleteSelect].forEach((select) => select.addEventListener("change", renderMicrocycles));
+  renderMicrocycles();
+
+  if (window.MICROCYCLE_GROUPS?.length) {
+    groupMap = buildMicrocycleGroupMapFromRecords(window.MICROCYCLE_GROUPS);
+    groupDataState = groupMap.size > 0 ? "ready" : "unavailable";
+    renderMicrocycles();
+  } else {
+    fetch("../grupos_tag_pagina1.csv")
+      .then((response) => {
+        if (!response.ok) throw new Error("Base de grupos indisponível");
+        return response.text();
+      })
+      .then((csvText) => {
+        groupMap = buildMicrocycleGroupMap(csvText);
+        groupDataState = groupMap.size > 0 ? "ready" : "unavailable";
+        renderMicrocycles();
+      })
+      .catch(() => {
+        groupDataState = "unavailable";
+        renderMicrocycles();
+      });
+  }
+}
+
+if (window.TRAINING_DATA?.records?.length) {
+  setupMicrocycleEvaluation(window.TRAINING_DATA);
+} else {
+  document.querySelector("#microcycle-year").innerHTML = '<option value="">Base indisponível</option>';
+  document.querySelector("#microcycle-athlete").innerHTML = '<option value="ALL">Todos os atletas</option>';
+  document.querySelector("#microcycle-rows").innerHTML = '<tr><td colspan="7" class="empty-table">Atualize a base de treinos para visualizar os microciclos.</td></tr>';
+}

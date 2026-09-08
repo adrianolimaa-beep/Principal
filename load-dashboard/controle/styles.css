@@ -806,6 +806,73 @@ td:last-child {
   min-width: 980px;
 }
 
+.microcycle-filter-panel,
+.microcycle-table-panel {
+  padding: 16px;
+}
+
+.microcycle-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.55fr) minmax(180px, 0.7fr) minmax(260px, 1.5fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.microcycle-method {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.microcycle-summary .summary-card:nth-child(3) strong {
+  font-size: 15px;
+}
+
+.microcycle-table-panel {
+  margin-top: 16px;
+}
+
+.microcycle-table {
+  min-width: 980px;
+}
+
+.microcycle-table th:first-child,
+.microcycle-table td:first-child,
+.microcycle-table th:nth-child(2),
+.microcycle-table td:nth-child(2) {
+  white-space: nowrap;
+}
+
+.microcycle-table td:not(:first-child):not(:nth-child(2)),
+.microcycle-table th:not(:first-child):not(:nth-child(2)) {
+  text-align: right;
+}
+
+.microcycle-table tbody tr:hover td {
+  background: #f6fafb;
+}
+
+.microcycle-code {
+  display: inline-flex;
+  min-width: 50px;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #e7f3f3;
+  color: #075f64;
+  font-weight: 700;
+}
+
+.microcycle-session-note {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+
 .group-density-table th:first-child,
 .group-density-table td:first-child,
 .group-density-table th:nth-child(2),
@@ -944,6 +1011,7 @@ td:last-child {
   .score-row,
   .training-filter-grid,
   .longitudinal-filter-grid,
+  .microcycle-filter-grid,
   .training-workspace {
     grid-template-columns: 1fr;
   }

@@ -20,6 +20,7 @@
         <button class="app-tab is-active" type="button" data-tab="ranking-view" aria-selected="true">Ranking percentil</button>
         <button class="app-tab" type="button" data-tab="training-view" aria-selected="false">Avaliação do treino</button>
         <button class="app-tab" type="button" data-tab="longitudinal-view" aria-selected="false">Densidade longitudinal em treinos</button>
+        <button class="app-tab" type="button" data-tab="microcycle-view" aria-selected="false">Microciclos</button>
       </nav>
 
       <div class="tab-view is-active" id="ranking-view">
@@ -157,10 +158,45 @@
           <div class="table-wrap"><table class="group-density-table"><thead><tr><th>Atleta</th><th>Posição</th><th>Densidade atual</th><th>Média móvel</th><th>Com ele mesmo</th><th>Média posição</th><th>Últimos dias</th></tr></thead><tbody id="longitudinal-group-rows"></tbody></table></div>
         </section>
       </div>
+      <div class="tab-view" id="microcycle-view">
+        <section class="panel microcycle-filter-panel">
+          <div class="panel-heading">
+            <div><p class="section-kicker">Segunda a domingo</p><h2>Soma das médias diárias por microciclo</h2></div>
+            <span id="microcycle-status">Carregando sessões</span>
+          </div>
+          <div class="microcycle-filter-grid">
+            <label>Ano<select id="microcycle-year"></select></label>
+            <label>Grupo<select id="microcycle-group"><option value="ALL">Todos os grupos</option><option value="G1">G1</option><option value="G2">G2</option><option value="G3">G3</option></select></label>
+            <label>Atleta<select id="microcycle-athlete"></select></label>
+          </div>
+          <p class="microcycle-method">Cada data considera apenas o período <strong>Session</strong>. Primeiro é calculada a média da equipe em cada dia de treino e, em seguida, essas médias diárias são somadas de segunda a domingo.</p>
+        </section>
+
+        <section class="training-summary microcycle-summary" aria-label="Resumo dos microciclos">
+          <article class="summary-card"><span>Microciclos com dados</span><strong id="microcycle-count">--</strong></article>
+          <article class="summary-card"><span>Sessões avaliadas</span><strong id="microcycle-session-count">--</strong></article>
+          <article class="summary-card"><span>Escopo</span><strong id="microcycle-scope">Equipe</strong></article>
+          <article class="summary-card"><span>Período</span><strong id="microcycle-period">--</strong></article>
+        </section>
+
+        <section class="panel microcycle-table-panel">
+          <div class="panel-heading">
+            <div><p class="section-kicker">Soma semanal</p><h2>Carga acumulada dos microciclos</h2></div>
+            <span>MC 1 contém o primeiro dia do ano</span>
+          </div>
+          <div class="table-wrap microcycle-table-wrap">
+            <table class="microcycle-table">
+              <thead><tr><th>Microciclo</th><th>Início</th><th>Distância total (m)</th><th>Alta intensidade (m)</th><th>Sprint (m)</th><th>Aceleração</th><th>Desaceleração</th></tr></thead>
+              <tbody id="microcycle-rows"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
       <footer class="app-footer">Adriano Lima - Felipe Lima</footer>
     </main>
     <script src="./data/zagueiros_reference.js"></script>
     <script src="./data/training_data.js"></script>
+    <script src="./data/microcycle_groups.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
