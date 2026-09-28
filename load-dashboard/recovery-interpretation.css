@@ -1,0 +1,32 @@
+#recoveryView .sr-interpretation {
+  padding: 18px;
+  border: 1px solid #ccdbe5;
+  border-radius: 10px;
+  background: #f4f8fa;
+}
+
+#recoveryView .sr-interpretation strong {
+  display: block;
+  margin-bottom: 7px;
+  color: #123d57;
+  font-size: 16px;
+}
+
+#recoveryView .sr-interpretation p {
+  margin: 0 0 8px;
+}
+
+#recoveryView .sr-interpretation span {
+  color: #536b7d;
+  font-size: 12px;
+}
+
+#recoveryView .sr-interpretation.clear {
+  border-left: 5px solid #13806e;
+  background: #edf9f5;
+}
+
+#recoveryView .sr-interpretation.caution {
+  border-left: 5px solid #c78322;
+  background: #fff8e9;
+}

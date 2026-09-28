@@ -931,7 +931,9 @@ function microcycleDetails(dateValue, year) {
 }
 
 function setupMicrocycleEvaluation(payload) {
-  const sessionRows = (payload.records || []).filter((row) => String(row.b).toLocaleUpperCase("pt-BR") === "SESSION");
+  // Session é o consolidado de cada atleta no dia. A base o mantém separado
+  // dos blocos elegíveis para não duplicar as outras análises do aplicativo.
+  const sessionRows = payload.sessions || (payload.records || []).filter((row) => String(row.b).toLocaleUpperCase("pt-BR") === "SESSION");
   const yearSelect = document.querySelector("#microcycle-year");
   const groupSelect = document.querySelector("#microcycle-group");
   const athleteSelect = document.querySelector("#microcycle-athlete");
@@ -976,9 +978,21 @@ function setupMicrocycleEvaluation(payload) {
     sessions.forEach((dateRows, date) => {
       const details = microcycleDetails(date, year);
       if (!microcycles.has(details.number)) microcycles.set(details.number, { ...details, sessions: [] });
+      // Há datas em que um atleta possui mais de uma linha Session. Antes de
+      // calcular a média da equipe, consolida todas as linhas daquele atleta
+      // no dia. Assim, uma segunda/terceira sessão compõe a carga diária em
+      // vez de reduzir a média por receber peso extra como linha isolada.
+      const athletesByDay = new Map();
+      dateRows.forEach((row) => {
+        if (!athletesByDay.has(row.i)) athletesByDay.set(row.i, []);
+        athletesByDay.get(row.i).push(row);
+      });
       const values = {};
       microcycleMetricConfig.forEach((metric) => {
-        values[metric.key] = mean(dateRows.map((row) => Number(row[metric.key]) || 0));
+        const dailyAthleteTotals = [...athletesByDay.values()].map((athleteRows) =>
+          athleteRows.reduce((total, row) => total + (Number(row[metric.key]) || 0), 0),
+        );
+        values[metric.key] = mean(dailyAthleteTotals);
       });
       microcycles.get(details.number).sessions.push({ date, values });
     });
@@ -1034,7 +1048,7 @@ function setupMicrocycleEvaluation(payload) {
     groupDataState = groupMap.size > 0 ? "ready" : "unavailable";
     renderMicrocycles();
   } else {
-    fetch("../grupos_tag_pagina1.csv")
+    fetch("./grupos_tag_pagina1.csv")
       .then((response) => {
         if (!response.ok) throw new Error("Base de grupos indisponível");
         return response.text();

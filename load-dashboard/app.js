@@ -237,6 +237,7 @@ const els = {
   rankingTableHead: document.querySelector("#rankingTableHead"),
   rankingTable: document.querySelector("#rankingTable"),
   rankingTableCount: document.querySelector("#rankingTableCount"),
+  rankingPrintButton: document.querySelector("#rankingPrintButton"),
   correlationView: document.querySelector("#correlationView"),
   correlationNote: document.querySelector("#correlationNote"),
   correlationGamesKpi: document.querySelector("#correlationGamesKpi"),
@@ -262,6 +263,7 @@ const els = {
   demandTimelineNote: document.querySelector("#demandTimelineNote"),
   demandTable: document.querySelector("#demandTable"),
   demandTableCount: document.querySelector("#demandTableCount"),
+  demandPrintButton: document.querySelector("#demandPrintButton"),
   externalView: document.querySelector("#externalView"),
   externalFileInput: document.querySelector("#externalFileInput"),
   externalTemplateLink: document.querySelector("#externalTemplateLink"),
@@ -379,7 +381,7 @@ function renderRankingMetricControls() {
   const rankingOptions = [["averagePercentile", "Media dos percentis"], ...visible.map((key) => [key, rankingMetrics[key].label])];
   els.rankingSortSelect.innerHTML = rankingOptions.map(([key, label]) => `<option value="${key}">${label}</option>`).join("");
   els.rankingSortSelect.value = state.rankingSort;
-  els.rankingMetricToggle.textContent = `${visible.length} ${visible.length === 1 ? "variavel" : "variaveis"}`;
+  els.rankingMetricToggle.textContent = `${visible.length} ${visible.length === 1 ? "variável selecionada" : "variáveis selecionadas"}`;
   els.rankingMetricMenu.innerHTML = rankingMetricKeys.map((key) => `
     <label class="metric-picker-option">
       <input type="checkbox" value="${key}" ${visible.includes(key) ? "checked" : ""}>
@@ -424,7 +426,8 @@ function fillControls() {
   els.metricSelect.value = state.metric;
   fillCompareControl();
   renderRankingMetricControls();
-  const positions = Array.from(new Set(selectableAthletes.map((athlete) => athlete.position).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  // O ranking é uma leitura histórica do elenco: suas posições e atletas não dependem do filtro global de ativos.
+  const positions = Array.from(new Set(athletes.map((athlete) => athlete.position).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
   if (state.rankingPosition !== "all" && !positions.includes(state.rankingPosition)) {
     state.rankingPosition = "all";
   }
@@ -631,7 +634,7 @@ function bindControls() {
     const button = event.target.closest("button[data-view]");
     if (!button) return;
     state.view = button.dataset.view;
-    render();
+    renderActiveView();
   });
   els.gameSplitDateSelect.addEventListener("change", () => {
     state.gameSplitDate = els.gameSplitDateSelect.value || null;
@@ -712,6 +715,8 @@ function bindControls() {
     fillControls();
     render();
   });
+  els.rankingPrintButton.addEventListener("click", printRankingReport);
+  els.demandPrintButton.addEventListener("click", printDemandList);
   document.addEventListener("click", (event) => {
     if (els.rankingMetricMenu.hidden) return;
     if (event.target.closest(".ranking-metric-picker")) return;
@@ -2078,6 +2083,7 @@ function render() {
 }
 
 function renderActiveView() {
+  if (window.renderRecovery) window.renderRecovery();
   els.viewTabs.querySelectorAll("button").forEach((button) => {
     button.classList.toggle("active", button.dataset.view === state.view);
   });
@@ -2151,17 +2157,13 @@ function sanitizeReportClone(node) {
 function reportCoverLogoSvg() {
   return `
     <svg viewBox="0 0 120 140" aria-hidden="true">
-      <defs>
-        <linearGradient id="reportShield" x1="0" x2="1">
-          <stop offset="0%" stop-color="#0b3f8a"></stop>
-          <stop offset="100%" stop-color="#d71920"></stop>
-        </linearGradient>
-      </defs>
-      <path d="M18 10h84v54c0 31-16 53-42 66C34 117 18 95 18 64z" fill="url(#reportShield)"></path>
-      <path d="M28 20h64v40c0 24-11 41-32 53C39 101 28 84 28 60z" fill="#ffffff"></path>
-      <path d="M28 20h21v84c-8-7-14-16-18-27-2-6-3-12-3-17z" fill="#0b3f8a"></path>
-      <path d="M71 20h21v40c0 5-1 11-3 17-4 11-10 20-18 27z" fill="#d71920"></path>
-      <text x="60" y="58" text-anchor="middle" font-size="28" font-weight="900" fill="#0b3f8a">FEC</text>
+      <path d="M60 4l4.1 8.5 9.4 1.4-6.8 6.7 1.6 9.4-8.3-4.5-8.3 4.5 1.6-9.4-6.8-6.7 9.4-1.4z" fill="#d7a330"></path>
+      <path d="M13 34h94v37c0 28-18 48-47 62-29-14-47-34-47-62z" fill="#0b3f8a"></path>
+      <path d="M18 39h84v28c0 24-15 41-42 54-27-13-42-30-42-54z" fill="#ffffff"></path>
+      <path d="M22 68h25v43c-16-10-25-24-25-44z" fill="#0b3f8a"></path>
+      <path d="M73 68h25c0 20-9 34-25 44z" fill="#d71920"></path>
+      <path d="M18 39h84v25H18z" fill="#ffffff"></path>
+      <text x="60" y="56" text-anchor="middle" font-size="16" font-family="Arial, sans-serif" font-weight="900" fill="#0b3f8a">FORTALEZA</text>
     </svg>`;
 }
 
@@ -2978,10 +2980,9 @@ function percentileValue(value, sortedValues) {
 
 function buildRankingRows() {
   const visibleMetrics = visibleRankingMetrics();
-  const profiles = buildAthleteProfiles(state.rankingMinGames, "volume", { metricKeys: visibleMetrics });
-  const fallbackProfiles = state.activeOnly
-    ? buildAthleteProfiles(state.rankingMinGames, "volume", { ignoreActive: true, metricKeys: visibleMetrics })
-    : profiles;
+  // O Ranking percentil sempre considera o elenco inteiro, inclusive atletas inativos.
+  const profiles = buildAthleteProfiles(state.rankingMinGames, "volume", { ignoreActive: true, metricKeys: visibleMetrics });
+  const fallbackProfiles = profiles;
   return profiles.map((profile) => {
     let reference = state.rankingScope === "position"
       ? profiles.filter((item) => item.position === profile.position)
@@ -3100,6 +3101,71 @@ function renderRanking() {
       ${visibleMetrics.map((key) => `<td title="${row.athlete} | ${rankingMetrics[key].label}: P${pct(row.percentiles[key])} | ${formatRankingValue(row[key], key)}">P${pct(row.percentiles[key])}</td>`).join("")}
     </tr>
   `).join("");
+}
+
+function reportCrestImageHtml() {
+  const crestUrl = new URL("./assets/escudo-fec.png", window.location.href).href;
+  return `<img src="${escapeHtml(crestUrl)}" alt="Escudo Fortaleza Esporte Clube">`;
+}
+
+function printRankingReport() {
+  const visibleMetrics = visibleRankingMetrics();
+  const rows = limitedRankingRows(buildRankingRows());
+  if (!rows.length) {
+    alert("Não há atletas no recorte atual para imprimir.");
+    return;
+  }
+
+  const scope = state.rankingScope === "position" ? "Posição" : "Equipe";
+  const position = state.rankingPosition === "all" ? "Todas as posições" : state.rankingPosition;
+  const metricNames = visibleMetrics.map((key) => rankingMetrics[key].label).join(" · ");
+  const generatedAt = new Date().toLocaleString("pt-BR");
+  const pct = (value) => `P${Math.round(value)}`;
+  const headers = ["#", "Atleta", "Posição", "Jogos", "Média %", ...visibleMetrics.map((key) => rankingMetricShortLabels[key])];
+  const tableRows = rows.map((row, index) => `
+    <tr><td>${index + 1}</td><td class="athlete">${escapeHtml(row.athlete)}</td><td>${escapeHtml(row.position)}</td><td>${row.games}</td><td><strong>${pct(row.averagePercentile)}</strong></td>${visibleMetrics.map((key) => `<td>${pct(row.percentiles[key])}</td>`).join("")}</tr>
+  `).join("");
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert("Permita a abertura de janelas para imprimir o relatório.");
+    return;
+  }
+  printWindow.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de percentis | Fortaleza EC</title><style>
+    :root{--blue:#0b3f8a;--red:#d71920;--ink:#172033;--muted:#59677b;--line:#d9e1eb}*{box-sizing:border-box}@page{size:A4 landscape;margin:12mm}body{margin:0;color:var(--ink);font-family:Inter,"Segoe UI",Arial,sans-serif}.report{min-width:1000px}header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 0 14px;border-bottom:4px solid var(--red)}.brand{display:flex;align-items:center;gap:14px}.crest{width:56px;height:72px;flex:none}.crest img{width:100%;height:100%;display:block;object-fit:contain}.eyebrow{margin:0 0 4px;color:var(--red);font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}h1{margin:0;color:var(--blue);font-size:24px}.date{color:var(--muted);font-size:11px;font-weight:700;text-align:right}table{width:100%;margin-top:18px;border-collapse:collapse;font-size:10px}thead{background:#f1f5fa;color:var(--blue)}th{padding:9px 7px;border-bottom:2px solid var(--blue);font-size:9px;text-align:center;text-transform:uppercase;white-space:nowrap}th:nth-child(2),td.athlete{text-align:left}td{padding:9px 7px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}td.athlete{color:#111827;font-weight:800}td strong{display:inline-flex;min-width:34px;justify-content:center;border-radius:999px;padding:3px 7px;background:var(--blue);color:#fff}footer{position:fixed;bottom:0;left:0;width:100%;padding:8px 12mm;border-top:2px solid var(--red);background:#fff;color:var(--muted);font-size:9px;line-height:1.45}footer strong{color:var(--blue)}@media print{.report{min-width:0}header{break-after:avoid}tr{break-inside:avoid}}</style></head><body>
+    <main class="report"><header><div class="brand"><div class="crest">${reportCrestImageHtml()}</div><div><p class="eyebrow">Fortaleza Esporte Clube · Controle de carga</p><h1>Relatório de percentis dos atletas</h1></div></div><div class="date">Gerado em ${generatedAt}<br>${rows.length} atleta(s) no relatório</div></header><table><thead><tr>${headers.map((label) => `<th>${escapeHtml(label)}</th>`).join("")}</tr></thead><tbody>${tableRows}</tbody></table></main>
+    <footer><strong>Critérios do relatório:</strong> Referência: ${scope} · Posição: ${escapeHtml(position)} · Mínimo de jogos: ${state.rankingMinGames} · Status: elenco completo (ativos e inativos) · Exibição: ${state.rankingLimit === "all" ? "Todos" : `Top ${state.rankingLimit}`} · Ordenação: ${escapeHtml(state.rankingSort === "averagePercentile" ? "Média dos percentis" : rankingMetrics[state.rankingSort].label)} · Métricas: ${escapeHtml(metricNames)}</footer><script>window.onload=()=>setTimeout(()=>window.print(),200);<\/script></body></html>`);
+  printWindow.document.close();
+}
+
+function printDemandList() {
+  const analysis = buildDemandAnalysis();
+  const rows = analysis.gameRows;
+  if (!rows.length) {
+    alert("Não há atletas com índice para a data selecionada.");
+    return;
+  }
+
+  const selectedDate = analysis.selectedDate ? dateLabel(analysis.selectedDate) : "Data não selecionada";
+  const generatedAt = new Date().toLocaleString("pt-BR");
+  const tableRows = rows.map((item, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td class="athlete">${escapeHtml(item.athlete)}</td>
+      <td>${escapeHtml(item.position || "-")}</td>
+      <td><strong style="background:${escapeHtml(item.band.color)}">${item.score.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</strong></td>
+      <td>${escapeHtml(item.band.label)}</td>
+    </tr>`).join("");
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert("Permita a abertura de janelas para imprimir a lista.");
+    return;
+  }
+  printWindow.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Índice de exigência | ${escapeHtml(selectedDate)}</title><style>
+    :root{--blue:#0b3f8a;--red:#d71920;--ink:#172033;--muted:#59677b;--line:#d9e1eb}*{box-sizing:border-box}@page{size:A4 portrait;margin:14mm}body{margin:0;color:var(--ink);font-family:Inter,"Segoe UI",Arial,sans-serif}.report{width:100%}header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:0 0 14px;border-bottom:4px solid var(--red)}.brand{display:flex;align-items:center;gap:14px}.crest{width:54px;height:68px;flex:none}.crest img{width:100%;height:100%;display:block;object-fit:contain}.eyebrow{margin:0 0 4px;color:var(--red);font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}h1{margin:0;color:var(--blue);font-size:23px}.date{color:var(--muted);font-size:11px;font-weight:700;text-align:right}table{width:100%;margin-top:20px;border-collapse:collapse;font-size:11px}thead{background:#f1f5fa;color:var(--blue)}th{padding:10px 8px;border-bottom:2px solid var(--blue);font-size:10px;text-align:center;text-transform:uppercase}th:nth-child(2),td.athlete{text-align:left}td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:center}td.athlete{font-weight:800}td strong{display:inline-flex;min-width:42px;justify-content:center;border-radius:999px;padding:4px 9px;color:#fff}footer{margin-top:18px;padding-top:9px;border-top:1px solid var(--line);color:var(--muted);font-size:9px}@media print{tr{break-inside:avoid}}</style></head><body>
+    <main class="report"><header><div class="brand"><div class="crest">${reportCrestImageHtml()}</div><div><p class="eyebrow">Fortaleza Esporte Clube · Controle de carga</p><h1>Lista de índice de exigência</h1></div></div><div class="date">Jogo de ${escapeHtml(selectedDate)}<br>Gerado em ${generatedAt}</div></header><table><thead><tr><th>#</th><th>Atleta</th><th>Posição</th><th>Índice</th><th>Faixa</th></tr></thead><tbody>${tableRows}</tbody></table><footer>${rows.length} atleta(s) · Índice final: 60% jogo + 20% EWMA4 + 20% ACWR.</footer></main><script>window.onload=()=>setTimeout(()=>window.print(),200);<\/script></body></html>`);
+  printWindow.document.close();
 }
 
 

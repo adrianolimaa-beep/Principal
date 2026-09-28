@@ -58,14 +58,6 @@ a {
   border-bottom: 3px solid var(--red);
 }
 
-.app-credit {
-  margin: 6px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
 .eyebrow {
   margin: 0 0 6px;
   color: var(--red);
@@ -416,8 +408,10 @@ select option {
 }
 
 .view-tabs {
-  display: inline-flex;
-  width: fit-content;
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
   gap: 6px;
   padding: 5px;
   border: 1px solid var(--line);
@@ -427,6 +421,7 @@ select option {
 }
 
 .view-tabs button {
+  flex: 0 0 auto;
   min-height: 36px;
   padding: 0 14px;
   border: 0;
@@ -1052,15 +1047,28 @@ select option {
   cursor: pointer;
 }
 
+.metric-picker-button::after {
+  content: "⌄";
+  float: right;
+  font-size: 18px;
+  line-height: 15px;
+}
+
+.metric-picker-button[aria-expanded="true"]::after {
+  transform: rotate(180deg);
+}
+
 .metric-picker-menu {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   z-index: 5;
   min-width: 260px;
+  max-height: min(280px, calc(100vh - 180px));
   display: grid;
   gap: 8px;
   padding: 12px;
+  overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
@@ -1079,6 +1087,29 @@ select option {
 .metric-picker-option input {
   width: 16px;
   height: 16px;
+}
+
+.ranking-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ranking-print-button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 12px;
+  background: var(--blue);
+  color: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.ranking-print-button:hover {
+  background: var(--red);
 }
 
 .cluster-controls span {
@@ -1253,17 +1284,6 @@ tbody tr:hover {
 .empty {
   padding: 44px 16px;
   color: var(--muted);
-  text-align: center;
-}
-
-.app-footer {
-  margin-top: 24px;
-  padding: 16px 0 22px;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
   text-align: center;
 }
 
