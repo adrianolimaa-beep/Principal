@@ -1,6 +1,6 @@
 window.LOAD_APP_DATA = {
   "meta": {
-    "generatedAt": "2026-09-28T09:43:16-03:00",
+    "generatedAt": "2026-09-28T09:52:43-03:00",
     "defaultMinMinutes": 85,
     "eventCount": 2713,
     "availabilityCount": 28498,
